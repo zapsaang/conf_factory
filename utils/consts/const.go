@@ -28,4 +28,6 @@ const (
 var (
 	RotateLogsName    = fmt.Sprintf("/%s.%%Y%%m%%d.log", ConstProgramName)
 	LatestLogLinkName = fmt.Sprintf("/%s.latest.log", ConstProgramName)
+	BytesTabCharacter = []byte{'\t'}
+	BytesIndent4Space = []byte{' ', ' ', ' ', ' '}
 )
