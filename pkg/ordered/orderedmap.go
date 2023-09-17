@@ -5,7 +5,7 @@
 //
 // Github repo: https://github.com/wk8/go-ordered-map
 // Added the Range function on the basis of the original code
-package maps
+package ordered
 
 import (
 	"fmt"
@@ -22,7 +22,7 @@ type Pair[K comparable, V any] struct {
 	element *list.Element[*Pair[K, V]]
 }
 
-type OrderedMap[K comparable, V any] struct {
+type Map[K comparable, V any] struct {
 	pairs map[K]*Pair[K, V]
 	list  *list.List[*Pair[K, V]]
 }
@@ -54,8 +54,8 @@ func WithInitialData[K comparable, V any](initialData ...Pair[K, V]) InitOption[
 // New creates a new OrderedMap.
 // options can either be one or several InitOption[K, V], or a single integer,
 // which is then interpreted as a capacity hint, à la make(map[K]V, capacity).
-func New[K comparable, V any](options ...any) *OrderedMap[K, V] { //nolint:varnamelen
-	orderedMap := &OrderedMap[K, V]{}
+func NewMap[K comparable, V any](options ...any) *Map[K, V] { //nolint:varnamelen
+	orderedMap := &Map[K, V]{}
 
 	var config initConfig[K, V]
 	for _, untypedOption := range options {
@@ -84,14 +84,14 @@ const invalidOptionMessage = `when using orderedmap.New[K,V]() with options, eit
 
 func invalidOption() { panic(invalidOptionMessage) }
 
-func (om *OrderedMap[K, V]) initialize(capacity int) {
+func (om *Map[K, V]) initialize(capacity int) {
 	om.pairs = make(map[K]*Pair[K, V], capacity)
 	om.list = list.New[*Pair[K, V]]()
 }
 
 // Get looks for the given key, and returns the value associated with it,
 // or V's nil value if not found. The boolean it returns says whether the key is present in the map.
-func (om *OrderedMap[K, V]) Get(key K) (val V, present bool) {
+func (om *Map[K, V]) Get(key K) (val V, present bool) {
 	if pair, present := om.pairs[key]; present {
 		return pair.Value, true
 	}
@@ -100,12 +100,12 @@ func (om *OrderedMap[K, V]) Get(key K) (val V, present bool) {
 }
 
 // Load is an alias for Get, mostly to present an API similar to `sync.Map`'s.
-func (om *OrderedMap[K, V]) Load(key K) (V, bool) {
+func (om *Map[K, V]) Load(key K) (V, bool) {
 	return om.Get(key)
 }
 
 // Load is an alias for Get, mostly to present an API similar to `sync.Map`'s.
-func (om *OrderedMap[K, V]) LoadOrStore(key K, value V) (V, bool) {
+func (om *Map[K, V]) LoadOrStore(key K, value V) (V, bool) {
 	old, ok := om.Get(key)
 	if ok {
 		return old, ok
@@ -115,7 +115,7 @@ func (om *OrderedMap[K, V]) LoadOrStore(key K, value V) (V, bool) {
 }
 
 // Value returns the value associated with the given key or the zero value.
-func (om *OrderedMap[K, V]) Value(key K) (val V) {
+func (om *Map[K, V]) Value(key K) (val V) {
 	if pair, present := om.pairs[key]; present {
 		val = pair.Value
 	}
@@ -125,13 +125,36 @@ func (om *OrderedMap[K, V]) Value(key K) (val V) {
 // GetPair looks for the given key, and returns the pair associated with it,
 // or nil if not found. The Pair struct can then be used to iterate over the ordered map
 // from that point, either forward or backward.
-func (om *OrderedMap[K, V]) GetPair(key K) *Pair[K, V] {
+func (om *Map[K, V]) GetPair(key K) *Pair[K, V] {
 	return om.pairs[key]
 }
 
 // Set sets the key-value pair, and returns what `Get` would have returned
 // on that key prior to the call to `Set`.
-func (om *OrderedMap[K, V]) Set(key K, value V) (val V, present bool) {
+func (om *Map[K, V]) Set(key K, value V) {
+	if pair, present := om.pairs[key]; present {
+		pair.Value = value
+		return
+	}
+
+	pair := &Pair[K, V]{
+		Key:   key,
+		Value: value,
+	}
+	pair.element = om.list.PushBack(pair)
+	om.pairs[key] = pair
+}
+
+// AddPairs allows setting multiple pairs at a time. It's equivalent to calling
+// Set on each pair sequentially.
+func (om *Map[K, V]) AddPairs(pairs ...Pair[K, V]) {
+	for _, pair := range pairs {
+		om.Set(pair.Key, pair.Value)
+	}
+}
+
+// Store is an alias for Set, mostly to present an API similar to `sync.Map`'s.
+func (om *Map[K, V]) Store(key K, value V) (val V, present bool) {
 	if pair, present := om.pairs[key]; present {
 		oldValue := pair.Value
 		pair.Value = value
@@ -148,22 +171,9 @@ func (om *OrderedMap[K, V]) Set(key K, value V) (val V, present bool) {
 	return
 }
 
-// AddPairs allows setting multiple pairs at a time. It's equivalent to calling
-// Set on each pair sequentially.
-func (om *OrderedMap[K, V]) AddPairs(pairs ...Pair[K, V]) {
-	for _, pair := range pairs {
-		om.Set(pair.Key, pair.Value)
-	}
-}
-
-// Store is an alias for Set, mostly to present an API similar to `sync.Map`'s.
-func (om *OrderedMap[K, V]) Store(key K, value V) (V, bool) {
-	return om.Set(key, value)
-}
-
 // Delete removes the key-value pair, and returns what `Get` would have returned
 // on that key prior to the call to `Delete`.
-func (om *OrderedMap[K, V]) Delete(key K) (val V, present bool) {
+func (om *Map[K, V]) Delete(key K) (val V, present bool) {
 	if pair, present := om.pairs[key]; present {
 		om.list.Remove(pair.element)
 		delete(om.pairs, key)
@@ -173,14 +183,14 @@ func (om *OrderedMap[K, V]) Delete(key K) (val V, present bool) {
 }
 
 // Len returns the length of the ordered map.
-func (om *OrderedMap[K, V]) Len() int {
+func (om *Map[K, V]) Len() int {
 	if om == nil || om.pairs == nil {
 		return 0
 	}
 	return len(om.pairs)
 }
 
-func (om *OrderedMap[K, V]) Range(f RangeFunc[K, V]) {
+func (om *Map[K, V]) Range(f RangeFunc[K, V]) {
 	for pair := om.Oldest(); pair != nil; pair = pair.Next() {
 		if !f(pair.Key, pair.Value) {
 			break
@@ -191,7 +201,7 @@ func (om *OrderedMap[K, V]) Range(f RangeFunc[K, V]) {
 // Oldest returns a pointer to the oldest pair. It's meant to be used to iterate on the ordered map's
 // pairs from the oldest to the newest, e.g.:
 // for pair := orderedMap.Oldest(); pair != nil; pair = pair.Next() { fmt.Printf("%v => %v\n", pair.Key, pair.Value) }
-func (om *OrderedMap[K, V]) Oldest() *Pair[K, V] {
+func (om *Map[K, V]) Oldest() *Pair[K, V] {
 	if om == nil || om.list == nil {
 		return nil
 	}
@@ -201,7 +211,7 @@ func (om *OrderedMap[K, V]) Oldest() *Pair[K, V] {
 // Newest returns a pointer to the newest pair. It's meant to be used to iterate on the ordered map's
 // pairs from the newest to the oldest, e.g.:
 // for pair := orderedMap.Oldest(); pair != nil; pair = pair.Next() { fmt.Printf("%v => %v\n", pair.Key, pair.Value) }
-func (om *OrderedMap[K, V]) Newest() *Pair[K, V] {
+func (om *Map[K, V]) Newest() *Pair[K, V] {
 	if om == nil || om.list == nil {
 		return nil
 	}
@@ -238,7 +248,7 @@ func (e *KeyNotFoundError[K]) Error() string {
 // MoveAfter moves the value associated with key to its new position after the one associated with markKey.
 // Returns an error iff key or markKey are not present in the map. If an error is returned,
 // it will be a KeyNotFoundError.
-func (om *OrderedMap[K, V]) MoveAfter(key, markKey K) error {
+func (om *Map[K, V]) MoveAfter(key, markKey K) error {
 	elements, err := om.getElements(key, markKey)
 	if err != nil {
 		return err
@@ -250,7 +260,7 @@ func (om *OrderedMap[K, V]) MoveAfter(key, markKey K) error {
 // MoveBefore moves the value associated with key to its new position before the one associated with markKey.
 // Returns an error iff key or markKey are not present in the map. If an error is returned,
 // it will be a KeyNotFoundError.
-func (om *OrderedMap[K, V]) MoveBefore(key, markKey K) error {
+func (om *Map[K, V]) MoveBefore(key, markKey K) error {
 	elements, err := om.getElements(key, markKey)
 	if err != nil {
 		return err
@@ -259,7 +269,7 @@ func (om *OrderedMap[K, V]) MoveBefore(key, markKey K) error {
 	return nil
 }
 
-func (om *OrderedMap[K, V]) getElements(keys ...K) ([]*list.Element[*Pair[K, V]], error) {
+func (om *Map[K, V]) getElements(keys ...K) ([]*list.Element[*Pair[K, V]], error) {
 	elements := make([]*list.Element[*Pair[K, V]], len(keys))
 	for i, k := range keys {
 		pair, present := om.pairs[k]
@@ -275,7 +285,7 @@ func (om *OrderedMap[K, V]) getElements(keys ...K) ([]*list.Element[*Pair[K, V]]
 // i.e. makes it the newest pair in the map.
 // Returns an error iff key is not present in the map. If an error is returned,
 // it will be a KeyNotFoundError.
-func (om *OrderedMap[K, V]) MoveToBack(key K) error {
+func (om *Map[K, V]) MoveToBack(key K) error {
 	_, err := om.GetAndMoveToBack(key)
 	return err
 }
@@ -284,14 +294,14 @@ func (om *OrderedMap[K, V]) MoveToBack(key K) error {
 // i.e. makes it the oldest pair in the map.
 // Returns an error iff key is not present in the map. If an error is returned,
 // it will be a KeyNotFoundError.
-func (om *OrderedMap[K, V]) MoveToFront(key K) error {
+func (om *Map[K, V]) MoveToFront(key K) error {
 	_, err := om.GetAndMoveToFront(key)
 	return err
 }
 
 // GetAndMoveToBack combines Get and MoveToBack in the same call. If an error is returned,
 // it will be a KeyNotFoundError.
-func (om *OrderedMap[K, V]) GetAndMoveToBack(key K) (val V, err error) {
+func (om *Map[K, V]) GetAndMoveToBack(key K) (val V, err error) {
 	if pair, present := om.pairs[key]; present {
 		val = pair.Value
 		om.list.MoveToBack(pair.element)
@@ -304,7 +314,7 @@ func (om *OrderedMap[K, V]) GetAndMoveToBack(key K) (val V, err error) {
 
 // GetAndMoveToFront combines Get and MoveToFront in the same call. If an error is returned,
 // it will be a KeyNotFoundError.
-func (om *OrderedMap[K, V]) GetAndMoveToFront(key K) (val V, err error) {
+func (om *Map[K, V]) GetAndMoveToFront(key K) (val V, err error) {
 	if pair, present := om.pairs[key]; present {
 		val = pair.Value
 		om.list.MoveToFront(pair.element)

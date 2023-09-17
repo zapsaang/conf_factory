@@ -8,7 +8,7 @@ import (
 
 	"github.com/zapsaang/conf_factory/conf/conf"
 	"github.com/zapsaang/conf_factory/pkg/logs"
-	"github.com/zapsaang/conf_factory/pkg/maps"
+	"github.com/zapsaang/conf_factory/pkg/ordered"
 	"github.com/zapsaang/conf_factory/repo"
 	"github.com/zapsaang/conf_factory/utils"
 )
@@ -21,8 +21,8 @@ type Config struct {
 type WorkSpace struct {
 	Config
 	BaseName    string
-	surgeConfig *maps.OrderedMap[string, *maps.OrderedMap[string, any]]
-	surgeTmp    *maps.OrderedMap[string, *maps.OrderedMap[string, any]]
+	surgeConfig *ordered.Map[string, *ordered.Map[string, any]]
+	surgeTmp    *ordered.Map[string, *ordered.Map[string, any]]
 	// TODO change to surge repo
 	repoHandler repo.Repo
 }
@@ -33,8 +33,8 @@ func New(baseName string, config Config) *WorkSpace {
 	return &WorkSpace{
 		Config:      config,
 		repoHandler: repo.New(repo.RoleIntegrator),
-		surgeConfig: maps.New[string, *maps.OrderedMap[string, any]](),
-		surgeTmp:    maps.New[string, *maps.OrderedMap[string, any]](),
+		surgeConfig: ordered.NewMap[string, *ordered.Map[string, any]](),
+		surgeTmp:    ordered.NewMap[string, *ordered.Map[string, any]](),
 		BaseName:    baseName,
 	}
 }
@@ -58,7 +58,7 @@ func Load(ctx context.Context, ws *WorkSpace) error {
 		}
 		if IsSectionTitle(_line) {
 			currentSection = _line
-			ws.surgeTmp.LoadOrStore(currentSection, maps.New[string, any]())
+			ws.surgeTmp.LoadOrStore(currentSection, ordered.NewMap[string, any]())
 		}
 		sectionContent, _ := ws.surgeTmp.Load(currentSection)
 		sectionContent.Store(_line, struct{}{})
@@ -68,9 +68,9 @@ func Load(ctx context.Context, ws *WorkSpace) error {
 }
 
 func Integrate(ctx context.Context, ws *WorkSpace) error {
-	ws.surgeTmp.Range(func(key string, value *maps.OrderedMap[string, any]) bool {
+	ws.surgeTmp.Range(func(key string, value *ordered.Map[string, any]) bool {
 		title, parser := GetSectionParser(key)
-		ws.surgeConfig.LoadOrStore(title, maps.New[string, any]())
+		ws.surgeConfig.LoadOrStore(title, ordered.NewMap[string, any]())
 		var lines = make([]string, 0, value.Len())
 		value.Range(func(key string, value any) bool {
 			lines = append(lines, key)
@@ -85,7 +85,7 @@ func Integrate(ctx context.Context, ws *WorkSpace) error {
 func Filte(ctx context.Context, ws *WorkSpace) error {
 	// TODO more log
 	// TODO filte by feature which platform excludes
-	ws.surgeConfig.Range(func(key string, value *maps.OrderedMap[string, any]) bool {
+	ws.surgeConfig.Range(func(key string, value *ordered.Map[string, any]) bool {
 
 		return true
 	})
@@ -96,7 +96,7 @@ func Store(ctx context.Context, ws *WorkSpace) error {
 	// TODO more log
 	// TODO optimize by calculating length ahead
 	var storeBuf bytes.Buffer
-	ws.surgeConfig.Range(func(key string, value *maps.OrderedMap[string, any]) bool {
+	ws.surgeConfig.Range(func(key string, value *ordered.Map[string, any]) bool {
 		storer, ok := GetSectionStorer(key)
 		if !ok {
 			return true

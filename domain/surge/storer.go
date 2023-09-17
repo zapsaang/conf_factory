@@ -4,11 +4,11 @@ import (
 	"bytes"
 	"strings"
 
-	"github.com/zapsaang/conf_factory/pkg/maps"
+	"github.com/zapsaang/conf_factory/pkg/ordered"
 	"github.com/zapsaang/conf_factory/utils/consts"
 )
 
-type Storer func(section *maps.OrderedMap[string, any]) []byte
+type Storer func(section *ordered.Map[string, any]) []byte
 
 var SectionDefaultStorer = map[string]Storer{
 	consts.SurgeSectionGeneral:       KVStorer,
@@ -24,12 +24,12 @@ var SectionDefaultStorer = map[string]Storer{
 	consts.SurgeSectionScript:        ListStorer,
 }
 
-func KVStorer(section *maps.OrderedMap[string, any]) []byte {
+func KVStorer(section *ordered.Map[string, any]) []byte {
 	var sectionBuf bytes.Buffer
 	section.Range(func(key string, value any) bool {
 		sectionBuf.WriteString(key)
 		sectionBuf.WriteRune(consts.SurgeKVSeparator)
-		_value, ok := value.(maps.OrderedMap[string, struct{}])
+		_value, ok := value.(ordered.Map[string, struct{}])
 		if !ok {
 			return true
 		}
@@ -45,7 +45,7 @@ func KVStorer(section *maps.OrderedMap[string, any]) []byte {
 	return sectionBuf.Bytes()
 }
 
-func ListStorer(section *maps.OrderedMap[string, any]) []byte {
+func ListStorer(section *ordered.Map[string, any]) []byte {
 	var sectionBuf bytes.Buffer
 	section.Range(func(key string, value any) bool {
 		sectionBuf.WriteString(key)
