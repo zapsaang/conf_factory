@@ -374,7 +374,7 @@ func TestUnmarshalConfig(t *testing.T) {
 				return
 			}
 			if !reflect.DeepEqual(got, ggot) {
-				t.Errorf(cmp.Diff(got, tt.want))
+				t.Errorf(cmp.Diff(got, ggot))
 			}
 		})
 	}
