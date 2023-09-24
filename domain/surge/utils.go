@@ -17,7 +17,7 @@ func GetSectionParser(title string) (string, Parser) {
 	}
 
 	parserName := strings.ToLower(strings.TrimSpace(RegexpSpecificParser.FindString(title)))
-	pureTitle := GetSectionStdTitle(RegexpSpecificParser.ReplaceAllString(title, consts.ConstEmptyString))
+	pureTitle := GetSectionStdTitle(RegexpSpecificParser.ReplaceAllString(title, consts.EmptyString))
 	parser, ok := SpecificParser[parserName]
 	if ok {
 		return pureTitle, parser

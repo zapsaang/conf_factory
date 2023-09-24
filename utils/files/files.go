@@ -1,60 +1,48 @@
 package files
 
 import (
-	"bytes"
 	"os"
-	"path/filepath"
+	"sync"
 
-	"github.com/zapsaang/conf_factory/pkg/logs"
-	"github.com/zapsaang/conf_factory/utils/consts"
+	"github.com/zapsaang/conf_factory/utils/pool"
 )
 
-func Read(root string, readFn ReadFunc, readOpts ...ReadOption) {
-	root = GetAbsolutePath(root)
-
-	// TODO change to WalkDir
-	err := filepath.Walk(warpRead(root, readFn, readOpts...))
-
-	if err != nil {
-		logs.WithError(err).WithField("read_dir", root).Error("walk dir failed")
-	}
+type file struct {
+	wg      *sync.WaitGroup
+	name    string
+	content []byte
 }
 
-func List(root string) []string {
-	// TODO support listOpts
-	root = GetAbsolutePath(root)
+var getFilePool = pool.MustNewPoolWithFunc(func(i interface{}) {
+	args := i.(*file)
+	defer args.wg.Done()
 
-	dirs, err := os.ReadDir(root)
-	if err != nil {
-		logs.WithError(err).WithField("read_dir", root).Error("read dir failed")
+	args.content = Get(args.name)
+})
+
+func Get(urlOrPath string) (buf []byte) {
+	if isURL(urlOrPath) {
+		buf, _ = Download(urlOrPath)
+		return buf
 	}
-	var files = make([]string, 0, len(dirs))
-	for _, entry := range dirs {
-		if entry.IsDir() {
-			continue
-		}
-		files = append(files, entry.Name())
-	}
-	return files
+	buf, _ = os.ReadFile(urlOrPath)
+	return buf
 }
 
-func GetAbsolutePath(root string) string {
-	// TODO support windows path
-	pathLen := len(root)
-	if pathLen > 0 && root[0] == consts.ConstUnixAbsolutePathPrefix {
-		return root
+func GetAll(urlOrPaths []string) [][]byte {
+	wg := &sync.WaitGroup{}
+	queue := make([]file, len(urlOrPaths))
+	wg.Add(len(urlOrPaths))
+	for i := range urlOrPaths {
+		queue[i].wg = wg
+		queue[i].name = urlOrPaths[i]
+		getFilePool.Invoke(&queue[i])
 	}
+	wg.Wait()
 
-	wd, err := os.Getwd()
-	if err != nil {
-		return root
+	result := make([][]byte, len(urlOrPaths))
+	for i := range queue {
+		result[i] = queue[i].content
 	}
-
-	pathLen += len(wd) + 1
-	pathBuf := bytes.Buffer{}
-	pathBuf.Grow(pathLen)
-	pathBuf.WriteString(wd)
-	pathBuf.WriteRune(consts.ConstUnixPathSeparator)
-	pathBuf.WriteString(root)
-	return pathBuf.String()
+	return result
 }

@@ -31,6 +31,7 @@ require (
 	github.com/lestrrat-go/file-rotatelogs v2.4.0+incompatible
 	github.com/lestrrat-go/strftime v1.0.6 // indirect
 	github.com/nyaruka/phonenumbers v1.0.55 // indirect
+	github.com/panjf2000/ants/v2 v2.8.2
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/samber/lo v1.38.1
 	github.com/tidwall/gjson v1.13.0 // indirect
@@ -40,5 +41,4 @@ require (
 	golang.org/x/arch v0.0.0-20210923205945-b76863e36670 // indirect
 	golang.org/x/sys v0.1.0 // indirect
 	google.golang.org/protobuf v1.27.1 // indirect
-	gopkg.in/yaml.v3 v3.0.1
 )

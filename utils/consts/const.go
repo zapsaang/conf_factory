@@ -1,33 +1,45 @@
 package consts
 
-import "fmt"
+import (
+	"fmt"
+	"regexp"
+	"time"
+)
 
 const (
-	ConstProgramName         = "conf_enhancement"
-	ConstWorkSpacePath       = "/work_space"
-	ConstJSONIndent          = "    "
-	ConstEmptyString         = ""
-	ConstZeroInt64     int64 = 0
+	ProgramName         = "conf_enhancement"
+	WorkSpacePath       = "/work_space"
+	JSONIndent          = "    "
+	EmptyString         = ""
+	ZeroInt64     int64 = 0
 
-	ConstCurrentDir             = "."
-	ConstCurrentParentDir       = ".."
-	ConstUnixAbsolutePathPrefix = '/'
-	ConstUnixPathSeparator      = '/'
+	CurrentDir             = "."
+	CurrentParentDir       = ".."
+	UnixAbsolutePathPrefix = '/'
+	UnixPathSeparator      = '/'
 
-	ConstDefaultSurgeBaseDir   = "base/surge"
-	ConstDefaultSurgeResultDir = "result/surge"
+	DefaultSurgeBaseDir   = "base/surge"
+	DefaultSurgeResultDir = "result/surge"
 
-	ConstDefaultClashBaseDir   = "base/clash"
-	ConstDefaultClashResultDir = "result/clash"
+	DefaultClashBaseDir   = "base/clash"
+	DefaultClashResultDir = "result/clash"
+
+	HTTPRequestTimeout = 10 * time.Second
+	FileBufferLength   = 4096
+	AntsPoolLimitation = 8
 
 	ParamNameToken = "token"
 
 	TemplateServerAddress = "%s:%d"
+
+	RegexpPatternURL = `^https?://[^\s/$.?#].[^\s]*$`
 )
 
 var (
-	RotateLogsName    = fmt.Sprintf("/%s.%%Y%%m%%d.log", ConstProgramName)
-	LatestLogLinkName = fmt.Sprintf("/%s.latest.log", ConstProgramName)
+	RotateLogsName    = fmt.Sprintf("/%s.%%Y%%m%%d.log", ProgramName)
+	LatestLogLinkName = fmt.Sprintf("/%s.latest.log", ProgramName)
 	BytesTabCharacter = []byte{'\t'}
 	BytesIndent4Space = []byte{' ', ' ', ' ', ' '}
+
+	RegexpCompiledURL = regexp.MustCompile(RegexpPatternURL)
 )
